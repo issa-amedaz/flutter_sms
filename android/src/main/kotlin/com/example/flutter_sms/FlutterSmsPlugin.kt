@@ -2,11 +2,8 @@ package com.example.flutter_sms
 
 import android.annotation.TargetApi
 import android.app.Activity
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.app.PendingIntent
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -27,8 +24,6 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private lateinit var mChannel: MethodChannel
   private var activity: Activity? = null
-  private lateinit var context: Context
-  private lateinit var result: Result
   private val REQUEST_CODE_SEND_SMS = 205
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -76,7 +71,6 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
-    this.result = result
     when (call.method) {
         "sendSMS" -> {
           if (!canSendSMS()) {
@@ -121,8 +115,6 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     val mSmsManager = SmsManager.getDefault()
     val numbers = phones.split(";")
 
-    activity?.registerReceiver(smsSentReceiver, IntentFilter("SMS_SENT_ACTION"))
-
     for (num in numbers) {
       Log.d("Flutter SMS", "msg.length() : " + message.toByteArray().size)
       if (message.toByteArray().size > 80) {
@@ -132,19 +124,8 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         mSmsManager.sendTextMessage(num, null, message, sentIntent, null)
       }
     }
-  }
 
-  private val smsSentReceiver = object : BroadcastReceiver(){
-    override fun onReceive(context: Context, intent: Intent) {
-      when(resultCode){
-        Activity.RESULT_OK -> result.success("SMS Sent Successfullt!")
-        SmsManager.RESULT_ERROR_GENERIC_FAILURE -> result.error("SEND_ERROR", "Generic failure", null)
-        SmsManager.RESULT_ERROR_NO_SERVICE -> result.error("SEND_ERROR", "No service", null)
-        SmsManager.RESULT_ERROR_NULL_PDU -> result.error("SEND_ERROR", "Null PDU", null)
-        SmsManager.RESULT_ERROR_RADIO_OFF -> result.error("SEND_ERROR", "Radio off", null)
-      }
-      context.unregisterReceiver(this)
-    }
+    result.success("SMS Sent!")
   }
 
   private fun sendSMSDialog(result: Result, phones: String, message: String) {
