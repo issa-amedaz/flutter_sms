@@ -18,8 +18,6 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
-import io.flutter.plugin.common.PluginRegistry.Registrar
-
 
 class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private lateinit var mChannel: MethodChannel
@@ -59,14 +57,13 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
     mChannel.setMethodCallHandler(null)
   }
 
-  // V1 embedding entry point. This is deprecated and will be removed in a future Flutter
-  // release but we leave it here in case someone's app does not utilize the V2 embedding yet.
+  // V1 embedding entry point - Updated for compatibility
   companion object {
     @JvmStatic
-    fun registerWith(registrar: Registrar) {
-      val inst = FlutterSmsPlugin()
-      inst.activity = registrar.activity()
-      inst.setupCallbackChannels(registrar.messenger())
+    fun registerWith(messenger: BinaryMessenger) {
+      val plugin = FlutterSmsPlugin()
+      val channel = MethodChannel(messenger, "flutter_sms")
+      channel.setMethodCallHandler(plugin)
     }
   }
 
@@ -92,6 +89,7 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
   @TargetApi(Build.VERSION_CODES.ECLAIR)
   private fun canSendSMS(): Boolean {
+    if (activity == null) return false
     if (!activity!!.packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY))
       return false
     val intent = Intent(Intent.ACTION_SENDTO)
@@ -110,6 +108,11 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun sendSMSDirect(result: Result, phones: String, message: String) {
+    if (activity == null) {
+      result.error("activity_null", "Activity is null", null)
+      return
+    }
+    
     // SmsManager is android.telephony
     val sentIntent = PendingIntent.getBroadcast(activity, 0, Intent("SMS_SENT_ACTION"), PendingIntent.FLAG_IMMUTABLE)
     val mSmsManager = SmsManager.getDefault()
@@ -129,6 +132,11 @@ class FlutterSmsPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   }
 
   private fun sendSMSDialog(result: Result, phones: String, message: String) {
+    if (activity == null) {
+      result.error("activity_null", "Activity is null", null)
+      return
+    }
+    
     val intent = Intent(Intent.ACTION_SENDTO)
     intent.data = Uri.parse("smsto:$phones")
     intent.putExtra("sms_body", message)
